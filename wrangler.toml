@@ -1,0 +1,15 @@
+name = "wc2026-forecast"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "dist"
+
+# Secrets are NOT stored here. Set keys as encrypted secrets:
+#   wrangler pages secret put FOOTBALL_DATA_API_KEY
+#   wrangler pages secret put FOOTBALL_DATA_API_KEY_2   (optional, pools rate limit)
+#   wrangler pages secret put FOOTBALL_DATA_API_KEY_3
+# or in the dashboard: Pages > project > Settings > Variables and Secrets.
+
+# Globally-shared cache: the Pages Function hits football-data.org ~once/minute
+# worldwide no matter the traffic, protecting the shared key pool.
+[[kv_namespaces]]
+binding = "WC_CACHE"
+id = "2d226c28a0264bae94bcb6e13a42bfd2"

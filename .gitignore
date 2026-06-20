@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+.cloudflare.env
+.dev.vars
+.secrets/
+*.secret
+.wrangler
+*.log
+.DS_Store

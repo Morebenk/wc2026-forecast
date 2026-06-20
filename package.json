@@ -1,0 +1,21 @@
+{
+  "name": "wc2026-forecast",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Live Monte-Carlo qualification forecast for the 2026 FIFA World Cup group stage",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "deploy": "npm run build && wrangler pages deploy dist"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240909.0",
+    "@types/node": "^20.19.43",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2",
+    "wrangler": "^3.78.0"
+  }
+}
