@@ -490,4 +490,25 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "Enter") { const t = list[state.qi]; if (t) selectTeam(t.n); }
 });
 
+function positionTip(el: HTMLElement) {
+  el.style.removeProperty("--tip-shift");
+  const w = parseFloat(getComputedStyle(el, "::after").width) || 0;
+  if (!w) return;
+  const r = el.getBoundingClientRect();
+  const center = r.left + r.width / 2;
+  const margin = 8, vw = document.documentElement.clientWidth;
+  let shift = 0;
+  if (center - w / 2 < margin) shift = margin - (center - w / 2);
+  else if (center + w / 2 > vw - margin) shift = vw - margin - (center + w / 2);
+  if (shift) el.style.setProperty("--tip-shift", `${Math.round(shift)}px`);
+}
+document.addEventListener("pointerenter", (e) => {
+  const el = (e.target as HTMLElement).closest?.(".info") as HTMLElement | null;
+  if (el) positionTip(el);
+}, true);
+document.addEventListener("focusin", (e) => {
+  const el = (e.target as HTMLElement).closest?.(".info") as HTMLElement | null;
+  if (el) positionTip(el);
+});
+
 load(false);
