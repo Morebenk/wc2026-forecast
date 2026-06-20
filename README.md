@@ -1,104 +1,110 @@
-# WC2026 Forecast — World Cup qualification engine
+<div align="center">
 
-A live, **strength-free** forecast for any World Cup group stage. It reads the
-tournament (teams, groups, fixtures, results) **live from the football-data.org
-API** — nothing is hardcoded, so the same app works every edition — and answers,
-for any team:
+# ⚽ WC2026 Forecast
 
-- **Is it mathematically through, out, or still alive?** Exact combinatorics over
-  every remaining result, using the 2026 tiebreakers.
-- **What does each of its own results do?** Win / Draw / Lose → real chance to
-  reach the knockout (including the third-place route).
-- **What does it need, and who else affects it?** The simplest result that seals a
-  top-2 place, plus — when it can drop to 3rd — the specific *other groups'* games
-  that move its survival in the best-thirds race.
+### Live, **strength-free** qualification maths for the FIFA World Cup group stage
 
-No team is ever treated as "stronger": every unplayed match is simulated neutrally,
-so the numbers reflect the standings and the schedule, not who's favoured.
+Will your team go through? What exactly do they need? Which *other* games decide their fate?
+This answers all three — from the live scores, with no opinion about who's "better".
 
-## App tabs
+<br/>
 
-- **Team** — advance gauge, mathematical status, win-group %, finishing spread,
-  schedule/form, and a projected-points histogram.
-- **Groups** — all 12 live tables + the third-place race with the qualifying cut line.
-- **All teams** — sortable, filterable table of every team.
-- **Scenarios** — the solver: a big "what you NEED", advance % for each own result,
-  and the cross-group games that decide your fate if you finish 3rd.
-- **Search** — ⌘/Ctrl-K command palette to jump to any team.
+[![Live demo](https://img.shields.io/badge/▶_LIVE_DEMO-wc2026--forecast.pages.dev-34D6C6?style=for-the-badge&labelColor=0E1630)](https://wc2026-forecast.pages.dev)
 
-## Stack
+<br/>
 
-- **Vite + TypeScript** single-page app (no framework).
-- **Cloudflare Pages** hosting + a **Pages Function** (`functions/api/wc/matches.ts`)
-  that proxies the API so the key never reaches the browser and there's no CORS.
-- Local dev uses a Vite middleware that shares the exact same proxy code.
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
+![Cloudflare Pages](https://img.shields.io/badge/Cloudflare_Pages-F38020?style=flat-square&logo=cloudflarepages&logoColor=white)
+![No framework](https://img.shields.io/badge/no_framework-vanilla_TS-F4B73D?style=flat-square&labelColor=0E1630)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 
-## Rate-limit safety net (built for public traffic)
+</div>
 
-The football-data.org key pool is shared by every visitor, so requests must never
-reach the upstream API uncached:
+---
 
-1. **KV cache** (global) — the Function serves a cached payload; upstream is hit
-   ~once per minute worldwide regardless of traffic.
-2. **Edge Cache API** (per data-centre) fallback when KV isn't bound.
-3. **Key pool** — multiple free keys round-robin with automatic failover on 429.
-4. **Client throttle** — the Refresh button has a 10s cooldown.
+> **The idea.** Most predictors rank teams by some power rating, then tell you a favourite.
+> This one does the opposite: it treats every remaining match as a coin-flip and works out,
+> purely from the **standings and the schedule**, what is *mathematically certain*, what is
+> *still possible*, and *how likely* each outcome is. The result is honest probabilities and
+> exact "what you need" scenarios — for **any** World Cup, because nothing is hardcoded.
 
-So a user hammering "Refresh" cannot drain the quota for everyone.
+## ✨ Highlights
 
-## Run locally
+- 🔴 **100% live** — teams, groups, fixtures and results stream from the football-data.org API. No data is baked in, so the same app works every tournament (it even auto-detects the format).
+- 🧮 **Exact scenario solver** — every combination of a group's remaining games is enumerated with the official 2026 tiebreakers. "Qualified" / "Eliminated" is only ever shown when it's *mathematically guaranteed*.
+- 🎲 **Honest, strength-free odds** — 20,000 neutral Monte-Carlo tournaments. No team is favoured; the numbers reflect structure, not reputation.
+- 🌍 **Cross-group dependencies** — when a team can finish 3rd, it shows the specific *other groups'* games that move its survival in the best-thirds race, with real numbers.
+- 🔎 **⌘K command palette**, deep-dive per team, sortable all-teams table, and a third-place race with the qualifying cut line.
+- 📱 **Responsive** and fast (~35 kB JS, no framework).
+
+## 🧭 Tabs
+
+| Tab | What it shows |
+| --- | --- |
+| **Team** | Advance gauge, mathematical status, win-group %, finishing spread, schedule & form, projected-points histogram |
+| **Groups** | All live group tables + the third-place race and its cut line |
+| **All teams** | Sortable, filterable table of every team |
+| **Scenarios** | The solver: what you **need**, your advance % for Win / Draw / Lose, and the outside games that decide it if you finish 3rd |
+
+## 🛠 Tech stack
+
+- **Vite + TypeScript** single-page app — no framework, no runtime dependencies.
+- **Cloudflare Pages** static hosting + a **Pages Function** proxy (`/api/wc/matches`) so the API key never reaches the browser and there's no CORS.
+- The dev server mirrors the exact same proxy code via a Vite middleware.
+
+## 🛡 Built for public traffic
+
+The free API key pool is shared by every visitor, so upstream is protected by four layers:
+
+1. **KV cache** (global) — the API is hit ~once/minute worldwide, no matter the traffic.
+2. **Edge Cache API** (per data-centre) fallback.
+3. **Key pool** — multiple free keys, round-robin with automatic failover on rate-limit.
+4. **Client throttle** — a 10-second cooldown on manual refresh.
+
+## 🚀 Run locally
 
 ```bash
 npm install
-cp .env.example .env        # paste your free key(s) — see below
-npm run dev                 # http://localhost:5173
+cp .env.example .env        # paste your free key — see below
+npm run dev                 # → http://localhost:5173
 ```
 
-Without a key the app shows a setup screen.
+**Free API key:** register at [football-data.org](https://www.football-data.org/client/register) (free, no card), then set `FOOTBALL_DATA_API_KEY` in `.env`. Optionally pool more accounts with `FOOTBALL_DATA_API_KEY_2`, `_3` to raise the rate limit. Without a key the app shows a friendly setup screen.
 
-### Free API key
-
-1. Register at https://www.football-data.org/client/register — they email a token (free, no card).
-2. Put it in `.env`: `FOOTBALL_DATA_API_KEY=your-token`
-3. (Optional) pool extra free accounts to raise the rate limit:
-   `FOOTBALL_DATA_API_KEY_2=…`, `FOOTBALL_DATA_API_KEY_3=…`
-
-## Deploy to Cloudflare Pages
+## ☁️ Deploy to Cloudflare Pages
 
 ```bash
 npm run build
 npx wrangler pages deploy dist --project-name wc2026-forecast
-# secrets (once):
 npx wrangler pages secret put FOOTBALL_DATA_API_KEY --project-name wc2026-forecast
-# optional global cache:
-npx wrangler kv namespace create WC_CACHE   # then add the id to wrangler.toml
+npx wrangler kv namespace create WC_CACHE   # optional global cache → add id to wrangler.toml
 ```
 
-Secrets live only as Cloudflare secrets / local `.env` — never in the repo.
+Secrets live only as Cloudflare secrets / a local `.env` — never in the repo.
 
-## How the maths works
+## 🧮 How the maths works
 
-- **Status & scenarios** are exact: every combination of a group's remaining results
-  is enumerated. Ties use head-to-head, then goal difference, then goals;
-  goal-difference-edge cases stay "in contention". A verdict is never shown unless
-  guaranteed.
-- **Percentages** come from a Monte-Carlo of the whole tournament where every
-  unplayed match draws goals from the same neutral Poisson distribution.
-- **Cross-group dependency** (third place): the best third-placed teams advance via a
-  12-way ranking on points *and* goal difference, so it can't be reduced to one
-  clean "iff" condition. Instead the app measures, for each external game, how much
-  each result shifts the team's survival — conditional on it finishing 3rd.
+- **Status & scenarios** are exact combinatorics over remaining results. Ties resolve by head-to-head → goal difference → goals; goal-difference-edge cases stay "in contention" so a verdict is never wrong.
+- **Percentages** are Monte-Carlo: every unplayed match draws goals from the same neutral Poisson distribution, then standings and the best-thirds cut are applied.
+- **Third-place dependency:** the best third-placed teams advance via a 12-way ranking on points *and* goal difference — which can't be reduced to one clean "iff" condition — so the app measures how much each external result shifts your survival, conditional on finishing 3rd.
 
-## Project layout
+## 🗂 Project structure
 
 ```
 functions/api/wc/matches.ts   Cloudflare Pages Function (proxy + KV/edge cache)
-src/server/fetchMatches.ts    Shared proxy logic (Function + Vite dev) + key pool
-src/api/liveData.ts           API payload -> generic Tournament model
-src/engine/sim.ts             Monte-Carlo, clinch/eliminate, scenario solver, sensitivity
+src/server/fetchMatches.ts    Shared proxy logic + key pool (Function + dev)
+src/api/liveData.ts           API payload → generic Tournament model
+src/engine/sim.ts             Monte-Carlo · clinch/eliminate · scenario solver · sensitivity
 src/engine/types.ts           Types
-src/main.ts                   UI (tabs, search, render)
-src/styles.css                Styles (responsive)
+src/main.ts                   UI — tabs, search, rendering
+src/styles.css                Responsive styles
 vite.config.ts                Dev middleware mirroring the Function
 wrangler.toml                 Pages + KV binding
 ```
+
+## 📄 License
+
+[MIT](LICENSE) © Morebenk
+
+<div align="center"><sub>Built with Claude Code · data from football-data.org</sub></div>
