@@ -45,6 +45,20 @@ const pct0 = (v: number) => Math.round(v * 100) + "%";
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 const ordinal = (i: number) => ["1st", "2nd", "3rd", "4th", "5th", "6th"][i] ?? `${i + 1}th`;
 const info = (tip: string) => `<button type="button" class="info" data-tip="${esc(tip)}" aria-label="${esc(tip)}">i</button>`;
+// A Monte-Carlo advance chance is only ever an exact 100% / 0% when the team is
+// *mathematically* clinched / eliminated (top-2 locked, or no route left). Best-third
+// survival can sit at ~99.99% yet never be guaranteed, so we cap the display so it can
+// never read 100% (or 0%) and silently contradict the "Qualified" status.
+function advFrac(name: string): number {
+  const st = state.forecast!.status[name], v = state.forecast!.adv[name];
+  return st === "clinched" ? 1 : st === "eliminated" ? 0 : Math.min(0.999, Math.max(0.001, v));
+}
+function advPct0(name: string): string {
+  const st = state.forecast!.status[name], v = state.forecast!.adv[name];
+  if (st === "clinched") return "100%";
+  if (st === "eliminated") return "0%";
+  return `${Math.min(99, Math.max(1, Math.round(v * 100)))}%`;
+}
 const statusWord: Record<Status, string> = { clinched: "Qualified", alive: "In contention", eliminated: "Eliminated" };
 
 function groupOf(name: string): Group { return EFF.groups.find((g) => g.teams.includes(name))!; }
@@ -125,7 +139,7 @@ function animateGauge(): void {
   const ring = document.getElementById("ring");
   const num = document.getElementById("advNum");
   if (!ring || !num || !state.forecast || !state.selected) return;
-  const target = state.forecast.adv[state.selected];
+  const target = advFrac(state.selected);
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (!state.animateGauge || reduce) {
     ring.setAttribute("stroke-dashoffset", String(RING_C * (1 - target)));
@@ -283,7 +297,7 @@ function groupCardBig(g: Group): string {
     return `<tr class="${r.name === state.selected ? "me" : ""}" data-team="${esc(r.name)}">
       <td class="l">${i + 1}</td><td class="l"><span class="sdot ${st}"></span>${esc(r.name)}</td>
       <td>${r.pld}</td><td>${r.pts}</td><td>${r.gd > 0 ? "+" : ""}${r.gd}</td>
-      <td class="advcell">${pct0(adv)}<span class="advbar"><i style="width:${adv * 100}%"></i></span></td></tr>`;
+      <td class="advcell">${advPct0(r.name)}<span class="advbar"><i style="width:${adv * 100}%"></i></span></td></tr>`;
   }).join("");
   return `<div class="card gbig">
     <div class="gbighead"><b>Group ${esc(g.name)}</b><span>${pldCount}/${g.matches.length} played</span></div>
@@ -335,7 +349,7 @@ function allTeamsView(): string {
     </tr></thead><tbody>${rows.map((r) => `<tr data-team="${esc(r.name)}">
       <td class="l"><span class="sdot ${r.status}"></span><span class="code">${esc(codeOf(r.name))}</span> ${esc(r.name)}</td>
       <td>${esc(r.group)}</td><td>${r.pld}</td><td>${r.pts}</td><td>${r.gd > 0 ? "+" : ""}${r.gd}</td>
-      <td class="advcell">${pct0(r.adv)}<span class="advbar"><i style="width:${r.adv * 100}%"></i></span></td>
+      <td class="advcell">${advPct0(r.name)}<span class="advbar"><i style="width:${r.adv * 100}%"></i></span></td>
       <td style="color:var(--gold)">${pct0(r.win)}</td><td>${pct0(r.p1)}</td><td>${EFF.bestThirds > 0 ? pct0(r.third) : "—"}</td>
     </tr>`).join("")}</tbody></table></div></div>`;
 }
@@ -359,7 +373,7 @@ function scenariosView(): string {
 
   const stat = (lab: string, val: string, tip: string, cls = "") => `<div class="sstat"><div class="lab">${lab} ${info(tip)}</div><div class="num ${cls}">${val}</div></div>`;
   const stats = `<div class="sstats">
-    ${stat("Advance", pct0(f.adv[sel]), "Overall chance of reaching the knockout (top " + adv + (EFF.bestThirds > 0 ? " or best-third" : "") + ").", need.cls === "no" ? "" : "teal")}
+    ${stat("Advance", advPct0(sel), "Overall chance of reaching the knockout (top " + adv + (EFF.bestThirds > 0 ? " or best-third" : "") + "). Only reads 100% when a top-" + adv + " place is mathematically locked — a near-certain best-third route stays just under.", need.cls === "no" ? "" : "teal")}
     ${stat("Win group", pct0(f.win[sel]), "Chance of finishing 1st in the group.", "gold")}
     ${EFF.bestThirds > 0 ? stat("As 3rd", pct0(f.thirdAdv[sel]), `Chance of finishing 3rd and surviving the best-${EFF.bestThirds} third-place cut.`) : ""}
     ${stat("Points", String(a.curPoints), "Points won so far, from games already played.")}
@@ -377,14 +391,17 @@ function scenariosView(): string {
       const top2 = a.nextResults?.find((x) => x.result === r.result)?.top2;
       const clsCard = top2 === "guaranteed" ? "ok" : r.pAdvance >= 0.6 ? "ok" : r.pAdvance >= 0.3 ? "maybe" : "no";
       const sub = top2 === "guaranteed" ? `seals top ${adv}` : r.pAdvance <= 0.02 ? "out" : EFF.bestThirds > 0 ? "via 3rd place" : "";
-      return `<div class="ocard ${clsCard}"><div class="ores">${r.result.toUpperCase()}</div><div class="ochip">${pct0(r.pAdvance)}</div>${sub ? `<div class="ocond">${sub}</div>` : ""}</div>`;
+      // 100% only when this result mathematically locks a top-2 spot; a near-certain
+      // best-third route stays just under so it never contradicts the status.
+      const ptxt = r.pAdvance < 0.005 ? "0%" : top2 === "guaranteed" ? "100%" : `${Math.min(99, Math.round(r.pAdvance * 100))}%`;
+      return `<div class="ocard ${clsCard}"><div class="ores">${r.result.toUpperCase()}</div><div class="ochip">${ptxt}</div>${sub ? `<div class="ocond">${sub}</div>` : ""}</div>`;
     }).join("");
     outcomes = `<div class="ocards-h">If ${esc(sel)} ${a.ownRemaining === 1 ? "in its last game" : "in its next game"} (${sens.ownNextMatch.isHome ? "vs" : "@"} ${esc(opp)}) ${info("Your chance to reach the knockout for each result of your own match — already counting the third-place route.")}</div>
       <p class="muted impactnote">chance to advance:</p>
       <div class="ocards">${cards}</div>`;
   } else {
     outcomes = `<div class="ocards-h">Group complete ${info("All your games are played; advancing now depends only on other groups' results.")}</div>
-      <div class="ocards"><div class="ocard ${need.cls}"><div class="ores">ADVANCE</div><div class="ochip">${pct0(f.adv[sel])}</div><div class="ocond">depends on other groups</div></div></div>`;
+      <div class="ocards"><div class="ocard ${need.cls}"><div class="ores">ADVANCE</div><div class="ochip">${advPct0(sel)}</div><div class="ocond">depends on other groups</div></div></div>`;
   }
 
   // matches elsewhere — only relevant if the team drops to 3rd place
